@@ -1,0 +1,26 @@
+--cpu Cortex-M3
+"shtory\startup_stm32f103xb.o"
+"shtory\main.o"
+"shtory\stm32f1xx_it.o"
+"shtory\stm32f1xx_hal_msp.o"
+"shtory\conversions.o"
+"shtory\ds3231.o"
+"shtory\stm32f1xx_hal_gpio_ex.o"
+"shtory\stm32f1xx_hal_i2c.o"
+"shtory\stm32f1xx_hal.o"
+"shtory\stm32f1xx_hal_rcc.o"
+"shtory\stm32f1xx_hal_rcc_ex.o"
+"shtory\stm32f1xx_hal_gpio.o"
+"shtory\stm32f1xx_hal_dma.o"
+"shtory\stm32f1xx_hal_cortex.o"
+"shtory\stm32f1xx_hal_pwr.o"
+"shtory\stm32f1xx_hal_flash.o"
+"shtory\stm32f1xx_hal_flash_ex.o"
+"shtory\stm32f1xx_hal_exti.o"
+"shtory\stm32f1xx_hal_tim.o"
+"shtory\stm32f1xx_hal_tim_ex.o"
+"shtory\system_stm32f1xx.o"
+--strict --scatter "shtory\shtory.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "shtory.map" -o shtory\shtory.axf
