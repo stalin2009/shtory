@@ -26,7 +26,10 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+#define ON  0
+#define OFF  1
+#define yes 0
+#define no 1
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -43,10 +46,16 @@
 I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim2;
-
+int summer_morning = 7; 
 /* USER CODE BEGIN PV */
-int count = 0;
-int period = 500;
+int count1 = 0;
+int count2 = 0;
+int period1 = 50;
+int period2 = 50;
+int counter1 = 0;
+int counter2 = 0;
+int down_step1= 20000;
+int down_step2= 30000;
 uint16_t Dev=0x68;
 /* USER CODE END PV */
 int minuts = 0;
@@ -93,12 +102,33 @@ enum states_roll cur_state_roll=go_up;
 /* USER CODE BEGIN 0 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	count++;
-	if (count>period) {
-		HAL_GPIO_TogglePin(led_GPIO_Port, led_Pin);
-		count = 0;
+	count1++;
+	count2++;
+	if (count1>period1) {
+		HAL_GPIO_TogglePin(step1_GPIO_Port, step1_Pin);
+		count1 = 0;
+			if ((counter1<down_step1)&& (cur_state_roll == go_down))
+		{
+			counter1++;
+		}
+		if (counter1>=down_step1){
+			roll1_down=1;
+		}
 		
 	}
+	if (count2>period2) {
+		HAL_GPIO_TogglePin(step2_GPIO_Port, step2_Pin);
+		count2 = 0;
+		if ((counter2<down_step2)&& (cur_state_roll == go_down))
+		{
+			counter2++;
+		}
+		if (counter2>=down_step2)
+		{
+			roll2_down=1;
+		}
+	}
+	
 		
 }
 /* USER CODE END 0 */
@@ -138,6 +168,22 @@ int main(void)
 	__enable_irq();
 	//time_write(16,15,0, HR_FORMAT_24);
 	//date_write(4, 6, 7, 23);
+	
+	if(HAL_GPIO_ReadPin(gerk1_GPIO_Port,gerk1_Pin) == no)
+						{
+							HAL_GPIO_WritePin(dir1_GPIO_Port, dir1_Pin, 1);							
+							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, 0);						
+							cur_state_roll = go_up;
+							roll1_down=0;						
+						}
+	if(HAL_GPIO_ReadPin(gerk2_GPIO_Port,gerk2_Pin) == no)
+						{
+							HAL_GPIO_WritePin(dir2_GPIO_Port, dir2_Pin, 1);							
+							HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, 0);						
+							cur_state_roll = go_up;
+							roll2_down=0;						
+						}
+	
   /* USER CODE END 2 */
 	
   /* Infinite loop */
@@ -147,37 +193,141 @@ int main(void)
 		switch (cur_state_day)
 		{
 			case day_summer:{
-				if ((hours > 22) || (hours < 8)){cur_state_day=night_summer;}
+				if ((hours > 22) || (hours < 8)){cur_state_day=night_summer;
+				}
 				if ((month <= 3) || (month >= 9)) {cur_state_day=day_winter;}
 				switch (cur_state_roll)
 				{
-					case top:{if(HAL_GPIO_ReadPin(proj_GPIO_Port,proj_Pin) == 1){
-												HAL_GPIO_WritePin(dir1_GPIO_Port, dir1_Pin, 1);
-												HAL_GPIO_WritePin(dir2_GPIO_Port, dir2_Pin, 1);
-												HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, 1);
-												HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, 1);
+					case top:{
+								if (HAL_GPIO_ReadPin(proj_GPIO_Port,proj_Pin) == 1){
+									if (((gerk1_GPIO_Port,gerk1_Pin)== no)||(HAL_GPIO_ReadPin(gerk2_GPIO_Port,gerk2_Pin)== no)){
+										roll1_top=0;
+							roll2_top=0;
+							HAL_GPIO_WritePin(dir1_GPIO_Port, dir1_Pin, 1);
+							HAL_GPIO_WritePin(dir2_GPIO_Port, dir2_Pin, 1);
+							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, ON);
+							HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, ON);
+							cur_state_roll = go_up;
+									}
+									else
+								{
+									counter1=0;
+									counter2=0;
+													HAL_GPIO_WritePin(dir1_GPIO_Port, dir1_Pin, 0);
+													HAL_GPIO_WritePin(dir2_GPIO_Port, dir2_Pin, 0);
+													HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, ON);
+													HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, ON);
+													cur_state_roll = go_down;
+											}
+								}
+								
+										
+					break;
+					}
+					
+					case down:{
+						if(HAL_GPIO_ReadPin(proj_GPIO_Port,proj_Pin) == 0)
+						{
+							HAL_GPIO_WritePin(dir1_GPIO_Port, dir1_Pin, ON);
+							HAL_GPIO_WritePin(dir2_GPIO_Port, dir2_Pin, ON);
+							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, 0);
+							HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, 0);
+							cur_state_roll = go_up;
+							roll1_down=0;
+							roll2_down=0;
+						}
+						break;
+					}
+					
+					case go_up:{
+						if (HAL_GPIO_ReadPin(gerk1_GPIO_Port,gerk1_Pin)== yes)
+						{
+							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, OFF);
+							roll1_top = 1;
+							roll1_count = 0;
+							
+						}
+						if (HAL_GPIO_ReadPin(gerk2_GPIO_Port,gerk2_Pin)== yes)
+						{
+							HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, OFF);
+							roll2_top = 1;
+							roll2_count = 0;
+						}
+						if(roll1_top&&roll2_top){
+							cur_state_roll=top;
+							
+						}	
+						break;
+					}
+					
+					case go_down:{
+						if(roll1_down){
+							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, OFF);
+						}
+						
+						if(roll2_down){
+							HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, OFF);
+						}
+						
+						if(roll1_down && roll2_down){
+							cur_state_roll=down;
+						}
+						
+						if(HAL_GPIO_ReadPin(proj_GPIO_Port,proj_Pin) == 0)
+						{
+							HAL_GPIO_WritePin(dir1_GPIO_Port, dir1_Pin, 1);
+							HAL_GPIO_WritePin(dir2_GPIO_Port, dir2_Pin, 1);
+							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, ON);
+							HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, ON);
+							cur_state_roll = go_up;
+						}
+						break;
+					}
+				}
+				break;
+			}
+			
+			case day_winter:{
+				if ((hours > 22) || (hours < 8)){cur_state_day=night_winter;}
+				if ((month < 9) || (month > 3)) {cur_state_day=day_summer;}
+				
+				
+				switch (cur_state_roll)
+				{
+					case top:{if((HAL_GPIO_ReadPin(proj_GPIO_Port,proj_Pin) == 1)&&(HAL_GPIO_ReadPin(datLight_GPIO_Port,datLight_Pin)==0)){
+												HAL_GPIO_WritePin(dir1_GPIO_Port, dir1_Pin, 0);
+												HAL_GPIO_WritePin(dir2_GPIO_Port, dir2_Pin, 0);
+												HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, 0);
+												HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, 0);
 												cur_state_roll = go_down;
 											}
+					break;
 					}
 					case down:{
 						if(HAL_GPIO_ReadPin(proj_GPIO_Port,proj_Pin) == 0)
 						{
-							HAL_GPIO_WritePin(dir1_GPIO_Port, dir1_Pin, 0);
-							HAL_GPIO_WritePin(dir2_GPIO_Port, dir2_Pin, 0);
-							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, 1);
-							HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, 1);
+							HAL_GPIO_WritePin(dir1_GPIO_Port, dir1_Pin, 1);
+							HAL_GPIO_WritePin(dir2_GPIO_Port, dir2_Pin, 1);
+							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, 0);
+							HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, 0);
 							cur_state_roll = go_up;
+							roll1_down=0;
+							roll2_down=0;
 						}
+						break;
 					}
 					
 					case go_up:{
 						if (roll1_top||(HAL_GPIO_ReadPin(gerk1_GPIO_Port,gerk1_Pin)== 0))
 						{
-							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, 0);
+							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, 1);
+							roll1_top = 1;
+							roll1_count = 0;
+							
 						}
 						if (roll2_top||(HAL_GPIO_ReadPin(gerk2_GPIO_Port,gerk2_Pin)== 0))
 						{
-							HAL_GPIO_WritePin(en1_GPIO_Port, en2_Pin, 0);
+							HAL_GPIO_WritePin(en1_GPIO_Port, en2_Pin, 1);
 							roll2_top = 1;
 							roll2_count = 0;
 						}
@@ -188,21 +338,22 @@ int main(void)
 						
 						if((HAL_GPIO_ReadPin(proj_GPIO_Port,proj_Pin) == 1)&&(init==1))
 						{
-							HAL_GPIO_WritePin(dir1_GPIO_Port, dir1_Pin, 1);
-							HAL_GPIO_WritePin(dir2_GPIO_Port, dir2_Pin, 1);
-							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, 1);
-							HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, 1);
+							HAL_GPIO_WritePin(dir1_GPIO_Port, dir1_Pin, 0);
+							HAL_GPIO_WritePin(dir2_GPIO_Port, dir2_Pin, 0);
+							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, 0);
+							HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, 0);
 							cur_state_roll = go_down;
 						}	
+						break;
 					}
 					
 					case go_down:{
 						if(roll1_down){
-							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, 0);
+							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, 1);
 						}
 						
 						if(roll2_down){
-							HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, 0);
+							HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, 1);
 						}
 						
 						if(roll1_down && roll2_down){
@@ -211,47 +362,112 @@ int main(void)
 						
 						if(HAL_GPIO_ReadPin(proj_GPIO_Port,proj_Pin) == 0)
 						{
-							HAL_GPIO_WritePin(dir1_GPIO_Port, dir1_Pin, 0);
-							HAL_GPIO_WritePin(dir2_GPIO_Port, dir2_Pin, 0);
-							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, 1);
-							HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, 1);
+							HAL_GPIO_WritePin(dir1_GPIO_Port, dir1_Pin, 1);
+							HAL_GPIO_WritePin(dir2_GPIO_Port, dir2_Pin, 1);
+							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, 0);
+							HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, 0);
 							cur_state_roll = go_up;
 						}
+						break;
 					}
 				}
-			}
-			
-			case day_winter:{
-				if ((hours > 22) || (hours < 8)){cur_state_day=day_winter;}
-				if ((month < 9) || (month > 3)) {cur_state_day=day_summer;}
+				break;
 			}
 			
 			case night_summer:{
-				if ((8 < hours) || (hours < 22)){cur_state_day=day_summer;}
+				if ((summer_morning < hours) || (hours < 22)){cur_state_day=day_summer;}
+				switch (cur_state_roll)
+				{
+					case top:{
+												HAL_GPIO_WritePin(dir1_GPIO_Port, dir1_Pin, 0);
+												HAL_GPIO_WritePin(dir2_GPIO_Port, dir2_Pin, 0);
+												HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, 0);
+												HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, 0);
+												cur_state_roll = go_down;
+											
+					break;
+					}
+					case down:{						
+						break;
+					}
+					
+					case go_up:{
+						cur_state_roll = go_down;
+						break;
+					}
+					
+					case go_down:{
+						if(roll1_down){
+							HAL_GPIO_WritePin(en1_GPIO_Port, en1_Pin, 1);
+						}
+						
+						if(roll2_down){
+							HAL_GPIO_WritePin(en2_GPIO_Port, en2_Pin, 1);
+						}
+						
+						if(roll1_down && roll2_down){
+							cur_state_roll=down;
+						}
+						
+						
+						break;
+					}
+				}
+				break;
 			}
 			
 			case night_winter:{
-				if ((8 < hours) || (hours < 22)){cur_state_day=night_winter;}
+				if ((hours > 22) || (hours < 8)){
+					cur_state_day=day_winter;
+				cur_state_roll=go_up;}
+				switch (cur_state_roll)
+				{
+					case top:{
+					break;
+					}
+					case down:{
+						
+						break;
+					}
+					
+					case go_up:{
+						break;
+					}
+					
+					case go_down:{
+						break;
+					}
+				}
+				break;
 			}
 		}
 	
 		//HAL_GPIO_TogglePin(led_GPIO_Port, led_Pin);
-		HAL_Delay(1000);
+		//HAL_Delay(1000);
     /* USER CODE END WHILE */
-		period = read_time(1)*10;
+		//period = read_time(1)*10;
+		seconds=read_time(1);
 		minuts =read_time(2);
 		hours = read_time(3);
-		if (minuts>50||hours>22){
-		period = period * 20;}
 			date = read_date(1);
 	month = read_date(2);
 	year = read_date(3);
 	day1 = read_date(4);
-			if (date>5) {
-				period=period*2;
+			if (day1==6 || day1==7) {
+				summer_morning = 9;
 			}
-		
+			else
+				{
+					summer_morning =7;
+				}
+		if((seconds%2)==0){
+			HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);}
+			else
+			{
+				HAL_GPIO_WritePin(led_GPIO_Port,led_Pin, 1);
+			}
     /* USER CODE BEGIN 3 */
+			
   }
   /* USER CODE END 3 */
 }
@@ -349,9 +565,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 3599;
+  htim2.Init.Prescaler = 359;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 20;
+  htim2.Init.Period = 1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -415,9 +631,14 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : gerk1_Pin gerk2_Pin proj_Pin datLight_Pin */
-  GPIO_InitStruct.Pin = gerk1_Pin|gerk2_Pin|proj_Pin|datLight_Pin;
+  GPIO_InitStruct.Pin = datLight_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+	
+	 GPIO_InitStruct.Pin = gerk1_Pin|gerk2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : out5v_Pin en1_Pin dir1_Pin step1_Pin */
@@ -439,6 +660,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = proj_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(proj_GPIO_Port, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
